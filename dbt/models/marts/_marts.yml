@@ -1,0 +1,347 @@
+version: 2
+
+models:
+  - name: dim_vehicle
+    description: >
+      One row per vehicle at make / model / model-year grain, conformed across vPIC, NHTSA
+      recalls, NHTSA complaints and the parts catalog. Join facts on vehicle_key.
+    columns:
+      - name: vehicle_key
+        description: Surrogate key, md5 of make | normalised model | model year.
+        data_tests: [unique, not_null]
+      - name: make
+        description: Canonical upper-case make, e.g. 'HONDA', 'MERCEDES-BENZ'.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('make_aliases')
+                field: canonical_make
+      - name: model_name
+        description: Display model name (vPIC spelling when available), e.g. 'Civic', 'F-150'.
+      - name: model_norm
+        description: Upper-case model name with punctuation collapsed to spaces ('F 150', 'CR V'); use for matching.
+      - name: model_year
+        description: Vehicle model year.
+        data_tests: [not_null, valid_model_year]
+      - name: vehicle_type
+        description: vPIC vehicle type - 'Passenger Car', 'Truck', 'Multipurpose Passenger Vehicle (MPV)' or 'Unknown'.
+      - name: in_vpic
+        description: True when the vehicle exists in NHTSA's vPIC reference for that model year.
+      - name: seen_in
+        description: Which sources mention the vehicle (list of 'catalog', 'complaint', 'recall').
+      - name: vehicle_age_years
+        description: Current calendar year minus model year.
+      - name: age_band
+        description: Aftermarket life-cycle band - '0-2 (warranty)', '3-5 (early aftermarket)', '6-12 (aftermarket core)', '13+ (late life)'.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['0-2 (warranty)', '3-5 (early aftermarket)', '6-12 (aftermarket core)', '13+ (late life)']
+      - name: aftermarket_age_weight
+        description: Demand multiplier by age band used in opportunity scoring (0.6 / 1.0 / 1.25 / 0.8).
+
+  - name: dim_component
+    description: >
+      NHTSA component paths (e.g. 'FUEL SYSTEM, GASOLINE:DELIVERY:FUEL PUMP') mapped to
+      aftermarket part categories through the component_taxonomy seed.
+    columns:
+      - name: component_key
+        data_tests: [unique, not_null]
+      - name: component_path
+        description: Full colon-separated NHTSA component path, upper case.
+      - name: nhtsa_system
+        description: Top level of the path, e.g. 'ENGINE', 'ELECTRICAL SYSTEM', 'SERVICE BRAKES, HYDRAULIC'.
+      - name: nhtsa_subsystem
+        description: Second level of the path when present, e.g. 'DELIVERY', 'IGNITION'.
+      - name: part_category
+        description: >
+          Aftermarket category - 'Engine & Cooling', 'Electrical & Ignition', 'Fuel System',
+          'Powertrain', 'Brakes', 'Steering', 'Suspension & Wheels', 'Lighting',
+          'Visibility & Wipers', 'Driver Assist & Stability', 'Body & Access', 'Hybrid & EV';
+          non-serviceable groups are 'Occupant Safety', 'Body Structure', 'Tires', 'Equipment',
+          'Communication', 'Other / Unknown'; 'Unmapped' if the taxonomy has no entry.
+        data_tests: [not_null]
+      - name: aftermarket_serviceable
+        description: True when the category is served by aftermarket replacement parts.
+
+  - name: dim_recall_campaign
+    description: >
+      One row per NHTSA recall campaign. units_affected is campaign-wide - never sum it
+      across vehicles or components.
+    columns:
+      - name: campaign_number
+        description: NHTSA campaign id, e.g. '20V314000'.
+        data_tests: [unique, not_null]
+      - name: manufacturer
+        description: Manufacturer that filed the defect report.
+      - name: units_affected
+        description: Potentially affected units for the whole campaign.
+      - name: report_received_date
+        description: Date NHTSA received the defect report (the recall date).
+      - name: owner_notification_date
+        description: Date owners were notified.
+      - name: initiated_by
+        description: "Who initiated the recall: 'MFR' (manufacturer), 'ODI' (NHTSA investigation) or 'OVSC'."
+      - name: do_not_drive
+        description: NHTSA 'do not drive' advisory.
+      - name: park_outside
+        description: NHTSA 'park outside' (fire risk) advisory.
+      - name: defect_summary
+        description: Narrative description of the defect.
+      - name: consequence_summary
+        description: Safety consequence of the defect.
+      - name: remedy_summary
+        description: Corrective action.
+      - name: vehicles_named
+        description: Number of distinct make/model/year vehicles named in the campaign.
+      - name: components_named
+        description: Number of distinct component paths named in the campaign.
+
+  - name: fct_recall_vehicle_component
+    description: >
+      Which vehicles and components each recall campaign covers. Grain: campaign x vehicle
+      x component. Count distinct campaign_number for recall counts.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [campaign_number, vehicle_key, component_key]
+    columns:
+      - name: campaign_number
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_recall_campaign')
+                field: campaign_number
+      - name: vehicle_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_vehicle')
+                field: vehicle_key
+      - name: component_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_component')
+                field: component_key
+      - name: report_received_date
+        description: Recall report date.
+
+  - name: fct_complaint
+    description: >
+      One row per owner complaint filed with NHTSA (vehicle complaints received since 2015).
+      Use fct_complaint_component to find the components a complaint cites.
+    columns:
+      - name: complaint_id
+        description: NHTSA ODI number of the complaint.
+        data_tests: [unique, not_null]
+      - name: vehicle_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_vehicle')
+                field: vehicle_key
+      - name: received_date
+        description: Date NHTSA received the complaint.
+        data_tests: [not_null]
+      - name: failure_date
+        description: Date of the incident reported by the owner.
+      - name: is_crash
+        description: Owner reported a crash.
+      - name: is_fire
+        description: Owner reported a fire.
+      - name: injuries
+        description: Number of people injured.
+      - name: deaths
+        description: Number of fatalities.
+      - name: is_severe
+        description: Crash, fire, injury or death reported.
+      - name: needed_medical_attention
+        description: Medical attention was required.
+      - name: vehicle_towed
+        description: Vehicle had to be towed.
+      - name: odometer_miles
+        description: Mileage at failure when reported.
+      - name: owner_state
+        description: Two-letter US state of the owner.
+      - name: complaint_source
+        description: Channel code, e.g. 'IVOQ' (NHTSA website), 'EVOQ' (hotline), 'MIVQ' (mobile app).
+      - name: components_cited
+        description: Number of distinct components the complaint cites.
+      - name: narrative
+        description: Owner's free-text description of the problem.
+
+  - name: fct_complaint_component
+    description: Bridge from complaints to the components they cite. Grain complaint x component.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [complaint_id, component_key]
+    columns:
+      - name: complaint_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('fct_complaint')
+                field: complaint_id
+      - name: component_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_component')
+                field: component_key
+
+  - name: dim_part
+    description: >
+      Current version of each aftermarket part (synthetic catalog) from the SCD2 snapshot
+      snap_catalog_parts.
+    columns:
+      - name: part_number
+        data_tests: [unique, not_null]
+      - name: brand
+        description: Brand line - 'Apex OE' (premium) or 'Apex Value' (economy).
+      - name: part_type
+        description: Part type, e.g. 'Ignition Coil', 'Fuel Pump Module', 'ABS Wheel Speed Sensor'.
+      - name: part_category
+        description: Aftermarket category; same values as dim_component.part_category.
+        data_tests: [not_null]
+      - name: description
+        description: Part description including position when relevant.
+      - name: list_price
+        description: Current list price in USD.
+      - name: part_status
+        description: "'Active', 'Discontinued' or 'Superseded'."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Active', 'Discontinued', 'Superseded']
+      - name: introduced_date
+        description: Date the part was introduced to the catalog.
+      - name: version_count
+        description: Number of SCD2 versions (price or status changes + 1).
+
+  - name: fct_part_fitment
+    description: Which parts fit which vehicles. Grain part x vehicle (model year) x position.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [part_number, vehicle_key, position]
+    columns:
+      - name: part_number
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_part')
+                field: part_number
+      - name: vehicle_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_vehicle')
+                field: vehicle_key
+      - name: position
+        description: Install position, e.g. 'Front', 'Rear', 'Front Left', 'Upstream', or 'N/A'.
+      - name: is_interchange
+        description: True when the fitment comes from an interchange with a sibling model.
+      - name: fitment_verified_in_vpic
+        description: True when the fitted vehicle exists in vPIC.
+
+  - name: mart_coverage_gap
+    description: >
+      Catalog opportunity analysis. Grain vehicle x aftermarket part category, for pairs with
+      at least one complaint or recall. opportunity_score ranks where field-failure demand is
+      high but catalog coverage is missing ('uncovered') or below half the category's typical
+      depth ('thin'); covered pairs score 0.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [vehicle_key, part_category]
+    columns:
+      - name: vehicle_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_vehicle')
+                field: vehicle_key
+      - name: make
+      - name: model_name
+      - name: model_year
+      - name: age_band
+        description: Vehicle age band (see dim_vehicle.age_band).
+      - name: part_category
+        description: Aftermarket part category.
+      - name: complaints_total
+        description: Distinct complaints citing a component in this category.
+      - name: complaints_recent
+        description: Complaints received in the last `recent_months` (default 36) before the newest complaint in the data.
+      - name: complaints_severe
+        description: Complaints with a crash, fire, injury or death.
+      - name: recall_campaigns
+        description: Distinct recall campaigns covering the vehicle and a component in this category.
+      - name: parts_covering
+        description: Active catalog parts that fit the vehicle in this category.
+      - name: category_median_parts
+        description: Median parts_covering among covered vehicles in the category.
+      - name: coverage_status
+        description: "'uncovered' (0 parts), 'thin' (< half the category median) or 'covered'."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['uncovered', 'thin', 'covered']
+      - name: demand_index
+        description: ln(1+recent complaints) + 2*ln(1+severe complaints) + 1.5*ln(1+recall campaigns).
+      - name: opportunity_score
+        description: demand_index x age weight x (1 uncovered, 0.5 thin, 0 covered). Higher = bigger catalog gap.
+      - name: category_rank
+        description: Rank of opportunity_score within the part category (1 = biggest gap).
+
+  - name: mart_component_trends
+    description: Monthly complaints, severe complaints and recall campaigns by make and part category.
+    columns:
+      - name: month
+        description: First day of the month.
+      - name: make
+      - name: part_category
+      - name: complaints
+      - name: severe_complaints
+      - name: recall_campaigns
+
+  - name: mart_data_conformance
+    description: >
+      Per-source row counts and match rates against the vPIC vehicle reference, measured on
+      rows inside vPIC's model-year window, split by how the model name was conformed.
+    columns:
+      - name: source
+        data_tests: [unique]
+      - name: rows_in_reference_years
+        description: Resolvable rows whose model year is inside the vPIC reference window.
+      - name: matched_exact
+        description: Rows whose normalised model name equals a vPIC model.
+      - name: matched_rule
+        description: Rows matched through a seeded rewrite rule (e.g. C300 -> C CLASS).
+      - name: matched_prefix
+        description: Rows matched to the longest vPIC base model prefixing the name (F 250 SD -> F 250).
+      - name: exact_match_rate
+        description: Match rate before conformance (exact names only).
+      - name: vpic_match_rate
+        description: Match rate after conformance (exact + rule + prefix).
+
+exposures:
+  - name: fitment_intelligence_dashboard
+    type: dashboard
+    maturity: high
+    url: http://localhost:8501
+    description: Streamlit app - coverage gaps, vehicle explorer, data quality and the NL-to-SQL analyst.
+    depends_on:
+      - ref('mart_coverage_gap')
+      - ref('mart_component_trends')
+      - ref('mart_data_conformance')
+      - ref('dim_vehicle')
+      - ref('fct_complaint')
+      - ref('fct_part_fitment')
+    owner:
+      name: Aditya Sharma

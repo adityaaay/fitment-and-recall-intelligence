@@ -1,0 +1,11 @@
+snapshots:
+  - name: snap_catalog_parts
+    description: >
+      SCD Type 2 history of the parts master. A new version opens whenever a part's list
+      price or lifecycle status changes between catalog feed revisions.
+    relation: source('catalog', 'catalog_parts')
+    config:
+      unique_key: part_number
+      strategy: check
+      check_cols: [list_price, status]
+      hard_deletes: invalidate

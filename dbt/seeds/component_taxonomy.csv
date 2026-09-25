@@ -1,0 +1,46 @@
+nhtsa_system,part_category,aftermarket_serviceable
+ENGINE,Engine & Cooling,true
+ENGINE AND ENGINE COOLING,Engine & Cooling,true
+ELECTRICAL SYSTEM,Electrical & Ignition,true
+FUEL/PROPULSION SYSTEM,Fuel System,true
+"FUEL SYSTEM, GASOLINE",Fuel System,true
+"FUEL SYSTEM, DIESEL",Fuel System,true
+"FUEL SYSTEM, OTHER",Fuel System,true
+POWER TRAIN,Powertrain,true
+SERVICE BRAKES,Brakes,true
+"SERVICE BRAKES, HYDRAULIC",Brakes,true
+"SERVICE BRAKES, AIR",Brakes,true
+"SERVICE BRAKES, ELECTRIC",Brakes,true
+PARKING BRAKE,Brakes,true
+STEERING,Steering,true
+SUSPENSION,Suspension & Wheels,true
+WHEELS,Suspension & Wheels,true
+EXTERIOR LIGHTING,Lighting,true
+INTERIOR LIGHTING,Lighting,true
+VISIBILITY,Visibility & Wipers,true
+VISIBILITY/WIPER,Visibility & Wipers,true
+FORWARD COLLISION AVOIDANCE,Driver Assist & Stability,true
+LANE DEPARTURE,Driver Assist & Stability,true
+BACK OVER PREVENTION,Driver Assist & Stability,true
+ELECTRONIC STABILITY CONTROL (ESC),Driver Assist & Stability,true
+ELECTRONIC STABILITY CONTROL,Driver Assist & Stability,true
+TRACTION CONTROL SYSTEM,Driver Assist & Stability,true
+VEHICLE SPEED CONTROL,Driver Assist & Stability,true
+LATCHES/LOCKS/LINKAGES,Body & Access,true
+HYBRID PROPULSION SYSTEM,Hybrid & EV,true
+AIR BAGS,Occupant Safety,false
+SEAT BELTS,Occupant Safety,false
+SEATS,Occupant Safety,false
+CHILD SEAT,Occupant Safety,false
+STRUCTURE,Body Structure,false
+TIRES,Tires,false
+EQUIPMENT,Equipment,false
+EQUIPMENT ADAPTIVE/MOBILITY,Equipment,false
+TRAILER HITCHES,Equipment,false
+COMMUNICATION,Communication,false
+COMMUNICATIONS,Communication,false
+UNKNOWN OR OTHER,Other / Unknown,false
+OTHER,Other / Unknown,false
+NONE,Other / Unknown,false
+FIRERELATED,Other / Unknown,false
+ROLLOVER,Other / Unknown,false

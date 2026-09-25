@@ -1,0 +1,7 @@
+fitment_intel:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('FITMENT_WAREHOUSE', '../data/warehouse/fitment.duckdb') }}"
+      threads: 4

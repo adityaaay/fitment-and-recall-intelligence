@@ -1,0 +1,33 @@
+version: 2
+
+models:
+  - name: int_vehicles
+    description: Conformed vehicle universe across vPIC, recalls, complaints and the catalog.
+    columns:
+      - name: vehicle_key
+        data_tests: [unique, not_null]
+      - name: model_year
+        data_tests: [not_null, valid_model_year]
+
+  - name: int_model_conformance
+    description: NHTSA make/model/year conformed to vPIC base models (exact, rule, prefix).
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [make, source_model_norm, model_year]
+    columns:
+      - name: match_method
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['exact', 'rule', 'prefix', 'unmatched']
+
+  - name: int_fitment_exploded
+    description: Catalog fitment exploded from year ranges to one row per model year.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [part_number, vehicle_key, position]
+    columns:
+      - name: vehicle_key
+        data_tests: [not_null]

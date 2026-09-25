@@ -1,0 +1,52 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: pip install -e ".[agent,dev]"
+
+      - name: Lint
+        run: ruff check src tests app
+
+      - name: Unit and integration tests
+        # The integration test builds the whole warehouse from the bundled NHTSA
+        # extracts: ingest -> validate -> dbt build (every model, snapshot and data test).
+        run: pytest -v
+
+      - name: Build sample warehouse and dbt docs
+        run: |
+          fitment run --sample
+          cd dbt && dbt docs generate --profiles-dir . --project-dir .
+        env:
+          FITMENT_WAREHOUSE: ${{ github.workspace }}/data/warehouse/fitment.duckdb
+
+      - name: Upload dbt artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dbt-artifacts
+          path: |
+            dbt/target/manifest.json
+            dbt/target/run_results.json
+            dbt/target/catalog.json
+            dbt/target/index.html
+          if-no-files-found: ignore

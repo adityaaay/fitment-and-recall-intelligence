@@ -1,0 +1,131 @@
+# Golden question set for the NL-to-SQL analyst (execution accuracy).
+# Each reference query was verified against the full warehouse. A case passes when the
+# analyst's final result contains the reference result (see agent/evaluate.py).
+# Questions are phrased the way a product manager would ask them - including the
+# traps (units_affected fan-out, complaint x component grain) the schema docs warn about.
+
+cases:
+  - id: do_not_drive_campaigns
+    question: How many recall campaigns carried a do-not-drive advisory?
+    sql: select count(*) as campaigns from marts.dim_recall_campaign where do_not_drive
+
+  - id: top_makes_2024
+    question: Which five makes received the most owner complaints in 2024, and how many each?
+    sql: |
+      select v.make, count(*) as complaints
+      from marts.fct_complaint c join marts.dim_vehicle v using (vehicle_key)
+      where year(c.received_date) = 2024
+      group by 1 order by 2 desc limit 5
+
+  - id: civic_2018_top_category
+    question: For the 2018 Honda Civic, which part category has the most owner complaints?
+    sql: |
+      select comp.part_category, count(distinct c.complaint_id) as complaints
+      from marts.fct_complaint c
+      join marts.dim_vehicle v using (vehicle_key)
+      join marts.fct_complaint_component cc using (complaint_id)
+      join marts.dim_component comp using (component_key)
+      where v.make = 'HONDA' and v.model_norm = 'CIVIC' and v.model_year = 2018
+      group by 1 order by 2 desc limit 1
+
+  - id: f150_fires
+    question: How many Ford F-150 complaints (all model years) reported a fire?
+    sql: |
+      select count(*) as fire_complaints
+      from marts.fct_complaint c join marts.dim_vehicle v using (vehicle_key)
+      where v.make = 'FORD' and v.model_norm = 'F 150' and c.is_fire
+
+  - id: recalls_per_year
+    question: How many recall campaigns were reported to NHTSA in each year from 2020 to 2024?
+    sql: |
+      select year(report_received_date) as year, count(*) as campaigns
+      from marts.dim_recall_campaign
+      where year(report_received_date) between 2020 and 2024
+      group by 1 order by 1
+
+  - id: uncovered_categories
+    question: >
+      Which five part categories have the most vehicles with recent complaints but no
+      catalog coverage at all?
+    sql: |
+      select part_category, count(*) as uncovered_vehicles
+      from marts.mart_coverage_gap
+      where coverage_status = 'uncovered' and complaints_recent > 0
+      group by 1 order by 2 desc limit 5
+
+  - id: avg_price_by_category
+    question: What is the average list price of active parts in each part category?
+    sql: |
+      select part_category, round(avg(list_price), 2) as avg_list_price
+      from marts.dim_part where part_status = 'Active'
+      group by 1 order by 1
+
+  - id: camry_2017_parts
+    question: How many different active catalog parts fit the 2017 Toyota Camry?
+    sql: |
+      select count(distinct f.part_number) as parts
+      from marts.fct_part_fitment f
+      join marts.dim_vehicle v using (vehicle_key)
+      join marts.dim_part p using (part_number)
+      where v.make = 'TOYOTA' and v.model_norm = 'CAMRY' and v.model_year = 2017
+        and p.part_status = 'Active'
+
+  - id: fuel_system_opportunities
+    question: >
+      List the top 10 vehicles (make, model, year) with the biggest Fuel System catalog
+      opportunity.
+    sql: |
+      select make, model_name, model_year
+      from marts.mart_coverage_gap
+      where part_category = 'Fuel System'
+      order by opportunity_score desc, vehicle_key limit 10
+
+  - id: largest_recall_since_2020
+    question: Which recall campaign since 2020 affected the most units, and how many?
+    sql: |
+      select campaign_number, units_affected
+      from marts.dim_recall_campaign
+      where report_received_date >= date '2020-01-01'
+      order by units_affected desc nulls last limit 1
+
+  - id: brake_complaints_by_state_2023
+    question: Which state filed the most service-brake complaints in 2023?
+    sql: |
+      select c.owner_state, count(distinct c.complaint_id) as complaints
+      from marts.fct_complaint c
+      join marts.fct_complaint_component cc using (complaint_id)
+      join marts.dim_component comp using (component_key)
+      where year(c.received_date) = 2023 and comp.part_category = 'Brakes'
+        and c.owner_state is not null
+      group by 1 order by 2 desc limit 1
+
+  - id: vehicles_not_in_vpic
+    question: How many vehicles in the warehouse do not exist in the vPIC reference?
+    sql: select count(*) as vehicles from marts.dim_vehicle where not in_vpic
+
+  - id: crash_share_by_make
+    question: >
+      Among makes with at least 5,000 complaints, which has the highest share of complaints
+      involving a crash? Give the share.
+    sql: |
+      select v.make, round(avg(case when c.is_crash then 1.0 else 0 end), 4) as crash_share
+      from marts.fct_complaint c join marts.dim_vehicle v using (vehicle_key)
+      group by 1 having count(*) >= 5000
+      order by 2 desc limit 1
+
+  - id: electrical_by_age_band
+    question: >
+      How are recent Electrical & Ignition complaints distributed across vehicle age bands?
+    sql: |
+      select age_band, sum(complaints_recent) as complaints
+      from marts.mart_coverage_gap
+      where part_category = 'Electrical & Ignition'
+      group by 1 order by 1
+
+  - id: tesla_severe_by_model
+    question: How many severe complaints (crash, fire, injury or death) does each Tesla model have?
+    sql: |
+      select v.model_name, count(*) as severe_complaints
+      from marts.fct_complaint c join marts.dim_vehicle v using (vehicle_key)
+      where v.make = 'TESLA' and c.is_severe
+      group by 1 order by 2 desc

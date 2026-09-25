@@ -1,0 +1,39 @@
+version: 2
+
+sources:
+  - name: nhtsa
+    schema: bronze
+    description: NHTSA Office of Defects Investigation data, landed by fitment_intel.ingest.
+    loaded_at_field: _loaded_at
+    config:
+      freshness:
+        warn_after: {count: 2, period: day}
+        error_after: {count: 8, period: day}
+    tables:
+      - name: nhtsa_recalls
+        description: >
+          Safety recall campaigns since 2010. One row per campaign x make/model/year x
+          component x manufacturer component id - the same vehicle/component can appear
+          several times within a campaign, and POTAFF is repeated on every row.
+      - name: nhtsa_complaints
+        description: >
+          Owner complaints received since 2015. One row per complaint x component (CMPLID);
+          ODINO identifies the complaint. PII columns are dropped at landing.
+      - name: vpic_models
+        description: vPIC model catalog per make / model year / vehicle type.
+        config:
+          freshness:
+            warn_after: {count: 30, period: day}
+            error_after: {count: 90, period: day}
+
+  - name: catalog
+    schema: bronze
+    description: Validated aftermarket catalog feed (see fitment_intel.catalog.validate).
+    loaded_at_field: _loaded_at
+    config:
+      freshness:
+        warn_after: {count: 7, period: day}
+        error_after: {count: 30, period: day}
+    tables:
+      - name: catalog_parts
+      - name: catalog_fitment

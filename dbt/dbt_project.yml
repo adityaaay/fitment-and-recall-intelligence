@@ -1,0 +1,56 @@
+name: fitment_intel
+version: "1.0.0"
+config-version: 2
+profile: fitment_intel
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages", "logs"]
+
+vars:
+  # Look-back window for "recent" demand signals, anchored to the latest complaint in the
+  # data rather than today's date so results are reproducible for any snapshot.
+  recent_months: 36
+
+seeds:
+  fitment_intel:
+    +schema: reference
+    component_taxonomy:
+      +column_types:
+        nhtsa_system: varchar
+        part_category: varchar
+        aftermarket_serviceable: boolean
+    model_rewrite_rules:
+      +column_types:
+        make: varchar
+        pattern: varchar
+        replacement: varchar
+        description: varchar
+    make_aliases:
+      +column_types:
+        raw_make: varchar
+        canonical_make: varchar
+
+models:
+  fitment_intel:
+    staging:
+      +schema: staging
+      +materialized: view
+    intermediate:
+      +schema: intermediate
+      +materialized: table
+    marts:
+      +schema: marts
+      +materialized: table
+
+snapshots:
+  fitment_intel:
+    +schema: snapshots
+
+data_tests:
+  fitment_intel:
+    +store_failures: false

@@ -1,0 +1,5 @@
+make,pattern,replacement,description
+MERCEDES-BENZ,"^(AMG )?(A|B|C|E|G|S|CL|CLA|CLK|CLS|GL|GLA|GLB|GLC|GLE|GLK|GLS|M|ML|R|SL|SLC|SLK) ?[0-9]{2,3}[A-Z]*( .*)?$",\2 CLASS,"Engine designations roll up to the class: C300, AMG C43 -> C CLASS"
+LEXUS,"^([A-Z]{2}) ?[0-9]{3}[A-Z]*( .*)?$",\1,"Lexus series: ES350, RX 450H -> ES, RX"
+CHEVROLET,"^SILVERADO (2500|3500)( .*)?$",SILVERADO HD,Heavy-duty Silverado is its own vPIC model from 2019
+GMC,"^SIERRA (2500|3500)( .*)?$",SIERRA HD,Heavy-duty Sierra is its own vPIC model from 2019
