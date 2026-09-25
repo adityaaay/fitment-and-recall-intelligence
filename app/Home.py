@@ -4,7 +4,7 @@ from common import SERIES, STATUS, STATUS_LABEL, page_header, query, require_war
 
 st.set_page_config(page_title="Fitment Intelligence", page_icon="🔧", layout="wide")
 page_header(
-    "Recall & Fitment Intelligence",
+    "Fitment & Recall Intelligence",
     "NHTSA recalls and owner complaints joined to an aftermarket parts catalog - "
     "where is field-failure demand outrunning catalog coverage?",
 )

@@ -9,6 +9,7 @@ Microsoft Edge on Windows, or `playwright install chromium` elsewhere):
 
 from __future__ import annotations
 
+import contextlib
 import sys
 from pathlib import Path
 
@@ -36,12 +37,11 @@ def main() -> int:
             page.goto(BASE + path, wait_until="networkidle")
             page.wait_for_selector("[data-testid='stAppViewContainer']")
             # Streamlit renders in several passes; wait until the run indicator is gone.
-            try:
+            # The widget can linger after the run, so a timeout falls through to a fixed wait.
+            with contextlib.suppress(PlaywrightTimeout):
                 page.wait_for_function(
                     "!document.querySelector('[data-testid=\"stStatusWidget\"]')",
                     timeout=20_000)
-            except PlaywrightTimeout:
-                pass  # the widget can linger after the run; fall through to a fixed wait
             page.wait_for_timeout(4000)
             page.screenshot(path=OUT / f"{name}.png", full_page=True)
             print("saved", OUT / f"{name}.png")

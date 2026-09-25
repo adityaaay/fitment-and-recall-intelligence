@@ -1,3 +1,3 @@
-"""Recall & fitment intelligence platform."""
+"""Fitment & recall intelligence platform."""
 
 __version__ = "1.0.0"

@@ -13,7 +13,7 @@ test:           ## unit + integration tests
 	pytest
 
 lint:
-	ruff check src tests app
+	ruff check src tests app scripts
 
 dashboard:
 	fitment dashboard

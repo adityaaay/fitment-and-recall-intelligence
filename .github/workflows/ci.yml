@@ -25,7 +25,7 @@ jobs:
         run: pip install -e ".[agent,dev]"
 
       - name: Lint
-        run: ruff check src tests app
+        run: ruff check src tests app scripts
 
       - name: Unit and integration tests
         # The integration test builds the whole warehouse from the bundled NHTSA
