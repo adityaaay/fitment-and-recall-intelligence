@@ -1,5 +1,8 @@
 # Fitment & Recall Intelligence
 
+[![ci](https://github.com/adityaaay/fitment-and-recall-intelligence/actions/workflows/ci.yml/badge.svg)](https://github.com/adityaaay/fitment-and-recall-intelligence/actions/workflows/ci.yml)
+![python](https://img.shields.io/badge/python-3.11%2B-blue) ![dbt](https://img.shields.io/badge/dbt-duckdb-orange) ![license](https://img.shields.io/badge/license-MIT-green)
+
 **Where is field-failure demand outrunning an aftermarket parts catalog?**
 
 An end-to-end data platform that joins **1.35M federal vehicle-safety records** (NHTSA recalls
